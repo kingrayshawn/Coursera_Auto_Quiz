@@ -71,6 +71,7 @@ function processing_questions(statements, options, multiChoice) {
 }
 
 function processing_userchoice(userChoice) {
+    if(!userChoice.length) return;
     if(same2DArray(userChoice, UserChoice)) return;
     UserChoice = userChoice.slice()
 
@@ -94,13 +95,13 @@ function processing_answers(answers) {
     // determind userchoise is in Option or not?
     for (let i = 0; i < answers.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
-            let new_answer = []
+            let new_answer = result[Statements[i]].slice();
             
             if (MultiChoice[i][0]) { // multiple Choice
                 if (answers[i].length == 1) { // all correct
-                    if(answers[i][0] == "Correct")  new_answer = [UserChoice[i]]
-                    else new_answer = [Options[i]]
+                    if(answers[i][0] == "Correct")  new_answer = UserChoice[i]
                 }else{ // partical correct
+                    new_answer = []
                     for (let j = 0; j < answers[i].length; j++) {
                         if (answers[i][j] == "Correct") {
                             new_answer.push(UserChoice[i][j]);
@@ -109,10 +110,9 @@ function processing_answers(answers) {
                 }
 
             } else if (answers[i][0] == "Correct") {
-                new_answer = [UserChoice[i][0]]
+                new_answer = UserChoice[i]
 
             } else if (answers[i][0] == "Incorrect") {
-                new_answer = result[Statements[i]].slice();
                 new_answer = new_answer.filter(item => item !== UserChoice[i][0]);
             }
 
