@@ -1,93 +1,125 @@
-function GetQuestion() {
+async function GetQuestion() {
+    return new Promise((resolve, reject) => {
+        const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
+
+        let Options = []
+        let Statements = []
+        let MultiChoice = []
+        let UserChoice = []
+        let Answers = []
+        let QCount = 1
+
+        QBlock.forEach(QBlock => {
+            let statement = GetStatement(QBlock)
+            Statements.push(QCount + statement)
+
+            let options = GetOptions(QBlock, check = false)
+            Options.push(options)
+
+            let multiChoice = GetMultiChoice(QBlock)
+            MultiChoice.push(multiChoice)
+
+            let userChoice = GetOptions(QBlock, check = true)
+            UserChoice.push(userChoice)
+
+            let answers = GetAnswer(QBlock)
+            Answers.push(answers)
+
+            QCount++;
+        });
+
+        console.log(Statements)
+        console.log(Options)
+        console.log(MultiChoice)
+        console.log(UserChoice)
+        console.log(Answers)
+
+        chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers }, () => {
+            resolve();
+        });
+    });
+}
+
+function GetStatement(QBlock) {
+    let StatementBlock = QBlock.querySelector('div.rc-FormPartsQuestion__contentCell.css-ybrhvy').querySelectorAll('span');
+    let statement = "";
+    StatementBlock.forEach(span => {
+        if (span.querySelectorAll('span').length === 0 && span.innerText != "") {
+            statement += span.innerText;
+        }
+    });
+
+    return statement;
+}
+
+
+function GetMultiChoice(QBlock) {
+    let multiChoice = []
+    const checkbox = QBlock.querySelectorAll('input[type="checkbox"]');
+    const radio = QBlock.querySelectorAll('input[type="radio"]');
+    if (checkbox.length) multiChoice.push(true);
+    if (radio.length) multiChoice.push(false);
+    return multiChoice;
+}
+
+function GetOptions(QBlock, check) {
+    const ChoiceBlock = QBlock.querySelector('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
+
+    let options = []
+    const radios = ChoiceBlock.querySelectorAll('input[type="radio"]');
+    const checkboxes = ChoiceBlock.querySelectorAll('input[type="checkbox"]');
+
+    if (radios.length) {
+        radios.forEach(radio => {
+            const spanText = radio.nextElementSibling.innerText;
+            if (check) {
+                if (radio.checked) options.push(spanText);
+            } else {
+                options.push(spanText);
+            }
+        });
+    } else if (checkboxes.length) {
+        checkboxes.forEach(checkbox => {
+            const spanText = checkbox.nextElementSibling.innerText;
+            if (check) {
+                if (checkbox.checked) options.push(spanText);
+            } else {
+                options.push(spanText);
+            }
+        });
+    }
+    return options;
+}
+
+function GetAnswer(QBlock) {
+    const AnswerBlock = QBlock.querySelector('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
+
+    let answers = []
+    const GradeFeedback = QBlock.querySelectorAll('[data-testid="GradeFeedback-caption"]');
+    GradeFeedback.forEach(answer => {
+        const spanText = answer.innerText;
+        answers.push(spanText);
+    });
+    return answers;
+}
+
+
+let isProcessing = false;
+let debounceTimeout = null;
+
+const observer = new MutationObserver(async () => {
     const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
     if (!QBlock.length) return;
 
-    let Options = []
-    let Statements = []
-    let MultiChoice = []
-    let QCount = 0
-
-    QBlock.forEach(qb => {
-        let statement = qb.querySelector('div.rc-FormPartsQuestion__contentCell.css-ybrhvy').querySelectorAll('span');
-        statement = Array.from(new Set(Array.from(statement).map(span => span.innerText))).join('');
-        Statements.push(QCount + statement)
-
-        let options = []
-        let OptionBlock = qb.querySelectorAll('div.rc-CML.rc-Option__input-text')
-        OptionBlock.forEach(opt => {
-            let option = opt.querySelector('span').innerText
-            options.push(option)
-        });
-        if (options.length) Options.push(options)
-
-        let multiChoice = []
-        const checkbox = qb.querySelectorAll('input[type="checkbox"]');
-        if (checkbox.length) multiChoice.push(true)
-        const radio = qb.querySelectorAll('input[type="radio"]');
-        if (radio.length) multiChoice.push(false)
-
-        if (multiChoice.length) MultiChoice.push(multiChoice)
-        QCount++;
-    });
-
-
-    chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice });
-}
-
-function GetUserChoice() {
-    const QBlock = document.querySelectorAll('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
-
-    let Options = []
-    QBlock.forEach(qb => {
-        let Choice = []
-        const radios = qb.querySelectorAll('input[type="radio"]');
-        radios.forEach(radio => {
-            if (radio.checked) {
-                const spanText = radio.nextElementSibling.innerText;
-                Choice.push(spanText);
-            }
-        });
-        const checkboxes = qb.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                const spanText = checkbox.nextElementSibling.innerText;
-                Choice.push(spanText);
-            }
-        });
-
-        if (Choice.length) Options.push(Choice)
-    });
-
-
-    chrome.runtime.sendMessage({ header: "sent user choice", Options: Options });
-}
-
-function GetAnswer() {
-    const QBlock = document.querySelectorAll('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
-
-    let Answers = []
-    QBlock.forEach(qb => {
-        let answers = []
-        const GradeFeedback = qb.querySelectorAll('[data-testid="GradeFeedback-caption"]');
-        GradeFeedback.forEach(answer => {
-            const spanText = answer.innerText;
-            answers.push(spanText);
-        });
-
-        if (answers.length) Answers.push(answers)
-    });
-
-
-    chrome.runtime.sendMessage({ header: "sent answers", Answers: Answers});
-}
-
-const observer = new MutationObserver(() => {
-    GetQuestion();
-    GetUserChoice();
-    setTimeout(() => {
-        GetAnswer();
-    }, 2000);
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(async () => {
+        console.log("in")
+        if (isProcessing) return;
+        isProcessing = true;
+        await GetQuestion();
+        console.log("out")
+        isProcessing = false;
+    }, 1000);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
-

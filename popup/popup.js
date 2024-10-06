@@ -2,7 +2,6 @@ var Statements = []
 var Options = []
 var MultiChoice = []
 
-
 document.addEventListener('DOMContentLoaded', () => {
     chrome.runtime.sendMessage({ header: "get questions" }, function (response) {
         show_on_popup(response.Statements, response.Options, response.MultiChoice);
@@ -12,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.scripting.executeScript({
                 target: { tabId: tabs[0].id },
                 function: autofill,
-                args: [Statements, Options, MultiChoice, false]
+                args: [Statements, false]
             });
         });
     });
@@ -21,42 +20,48 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.scripting.executeScript({
                 target: { tabId: tabs[0].id },
                 function: autofill,
-                args: [Statements, Options, MultiChoice, true]
+                args: [Statements, true]
             });
         });
     });
 });
 
+function emptyArray(arr) {
+    if (!arr.length) return true;
+    for (let item of arr) {
+        if (item.length) return false;
+    }
+    return true;
+}
 
 function show_on_popup(statements, options, multiChoice) {
-    if(!options.length) {
+    if (emptyArray(options)) {
         const questionList = document.getElementById('questionList');
-        questionList.innerText = "do it first"
+        questionList.innerText = "Refresh"
         return;
     }
-    
-    Statements = statements.slice();
-    Options = options.slice();
-    MultiChoice = multiChoice.slice();
 
-    console.log("Get Question (Popup)");
-    console.log(Statements)
-    console.log(Options)
-    console.log(MultiChoice)
+    Statements = JSON.parse(JSON.stringify(statements));
+    Options = JSON.parse(JSON.stringify(options));
+    MultiChoice = JSON.parse(JSON.stringify(multiChoice));
 
     for (let i = 0; i < Statements.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
             let ansIndex = "";
-            if(result[Statements[i]] && MultiChoice[i].length) {
-                for (let answer of result[Statements[i]]) {
+
+            if (result[Statements[i]]) {
+                let answers = []
+                if (MultiChoice[i][0]) answers = result[Statements[i]]
+                else answers = [result[Statements[i]][0]]
+
+                for (let answer of answers) { 
+                    if(ansIndex != "") ansIndex += ", ";
                     ansIndex += Options[i].indexOf(answer) + 1;
-    
-                    if (!MultiChoice[i][0]) break;
                 }
-            }else{
-                ansIndex = "不知道自己想";
+            } else {
+                ansIndex = "asking";
             }
-            
+
             const questionItem = document.createElement('div');
             questionItem.innerText = `${i + 1} : ${ansIndex}`;
 
@@ -67,31 +72,40 @@ function show_on_popup(statements, options, multiChoice) {
 }
 
 
-function autofill(Statements, Options, MultiChoice, submit) {
-    const QBlock = document.querySelectorAll('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
+function autofill(Statements, submit) {
+    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
 
-    for (let i = 0; i < Statements.length; i++) {
+    for (let i = 0; i < QBlock.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
-            if(result[Statements[i]] && MultiChoice[i].length) {
-                for (let answer of result[Statements[i]]) {
-                    let spans = QBlock[i].querySelectorAll('span');
-                    let targetSpan = Array.from(spans).find(span => span.innerText == answer);
-                    let inputButton = targetSpan.closest('div').querySelector('input[type="radio"], input[type="checkbox"]');
-                    if(!inputButton.checked) inputButton.click();
 
-                    if (!MultiChoice[i][0]) break;
-                }
+            const ChoiceBlock = QBlock[i].querySelector('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
+            const radios = ChoiceBlock.querySelectorAll('input[type="radio"]');
+            const checkboxes = ChoiceBlock.querySelectorAll('input[type="checkbox"]');
+
+            if (radios.length) {
+                let answer = [result[Statements[i]][0]]
+                radios.forEach(radio => {
+                    const optionStatement = radio.nextElementSibling.innerText;
+                    if (answer.includes(optionStatement) && !radio.checked) radio.click()
+                });
+            } else if (checkboxes.length) {
+                let answer = result[Statements[i]]
+                checkboxes.forEach(checkbox => {
+                    const optionStatement = checkbox.nextElementSibling.innerText;
+
+                    if (answer.includes(optionStatement) && !checkbox.checked) checkbox.click()
+                });
             }
         });
     }
 
     let signed = document.getElementById('agreement-checkbox-base')
-    if(!signed.checked) signed.click();
+    if (!signed.checked) signed.click();
 
     if (submit) {
         setTimeout(() => {
             document.querySelector('button[data-test="submit-button"]').click();
         }, 1000);
-        
+
     }
 }
