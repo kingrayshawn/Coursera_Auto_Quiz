@@ -1,43 +1,40 @@
 async function GetQuestion() {
-    return new Promise((resolve, reject) => {
-        const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
+    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
+    if (!QBlock.length) return;
 
-        let Options = []
-        let Statements = []
-        let MultiChoice = []
-        let UserChoice = []
-        let Answers = []
-        let QCount = 1
+    let Options = []
+    let Statements = []
+    let MultiChoice = []
+    let UserChoice = []
+    let Answers = []
+    let QCount = 1
 
-        QBlock.forEach(QBlock => {
-            let statement = GetStatement(QBlock)
-            Statements.push(QCount + statement)
+    QBlock.forEach(QBlock => {
+        let statement = GetStatement(QBlock)
+        Statements.push(QCount + statement)
 
-            let options = GetOptions(QBlock, check = false)
-            Options.push(options)
+        let options = GetOptions(QBlock, check = false)
+        Options.push(options)
 
-            let multiChoice = GetMultiChoice(QBlock)
-            MultiChoice.push(multiChoice)
+        let multiChoice = GetMultiChoice(QBlock)
+        MultiChoice.push(multiChoice)
 
-            let userChoice = GetOptions(QBlock, check = true)
-            UserChoice.push(userChoice)
+        let userChoice = GetOptions(QBlock, check = true)
+        UserChoice.push(userChoice)
 
-            let answers = GetAnswer(QBlock)
-            Answers.push(answers)
+        let answers = GetAnswer(QBlock)
+        Answers.push(answers)
 
-            QCount++;
-        });
-
-        console.log(Statements)
-        console.log(Options)
-        console.log(MultiChoice)
-        console.log(UserChoice)
-        console.log(Answers)
-
-        chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers }, () => {
-            resolve();
-        });
+        QCount++;
     });
+
+    console.log(Statements)
+    console.log(Options)
+    console.log(MultiChoice)
+    console.log(UserChoice)
+    console.log(Answers)
+
+    chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers });
 }
 
 function GetStatement(QBlock) {
@@ -107,15 +104,7 @@ function GetAnswer(QBlock) {
 let debounceTimeout = null;
 
 const observer = new MutationObserver(async () => {
-    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
-    if (!QBlock.length) return;
-
-    if (debounceTimeout) clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(async () => {
-        console.log("in")
-        await GetQuestion();
-        console.log("out")
-    }, 1000);
+    GetQuestion();
 });
 
 observer.observe(document.body, { childList: true, subtree: true });

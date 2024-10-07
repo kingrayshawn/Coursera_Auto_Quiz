@@ -6,7 +6,7 @@ var UserChoice = []
 var useAIanswer = true
 
 
-const API_KEY = 'AIzaSyCvhGHyvM1fUOSQ6VWSIRiyzsVf84lFBaA'
+const API_KEY = 'Your_google_gemini_API_key'
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
@@ -61,7 +61,7 @@ function emptyArray(arr) {
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     (async () => {
-        if (API_KEY == "Your_google_gemini_API_key") useAIanswer = false;
+        if (API_KEY == "Your_google_gemini_API_key" || API_KEY == "") useAIanswer = false;
         else useAIanswer = true;
 
         if (request.header == "sent questions") {
@@ -95,7 +95,7 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
 
     let need_processing_answers = true;
     if (emptyArray(answers) || emptyArray(UserChoice)) need_processing_answers = false;
-    // if (sameArray(answers, Answers)) need_processing_answers = false;
+    if (sameArray(answers, Answers)) need_processing_answers = false;
 
     Answers = JSON.parse(JSON.stringify(answers));
 
@@ -104,7 +104,7 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
 }
 
 async function processing_questions() {
-    console.log("processing_questions");
+    console.log("--------------------processing_questions--------------------");
     for (let i = 0; i < Statements.length; i++) {
         if (emptyArray(MultiChoice[i]) || emptyArray(Options[i])) continue;
         console.log("Load Q" + (i + 1));
@@ -123,7 +123,7 @@ async function processing_questions() {
 }
 
 async function processing_answers() {
-    console.log("processing_answers");
+    console.log("--------------------processing_answers--------------------");
 
     for (let i = 0; i < Answers.length; i++) {
         if (MultiChoice[i][0] == null) continue;
@@ -177,6 +177,11 @@ async function processing_answers() {
             }
         }
     }
+
+    setTimeout(() => {
+        Answers = []
+        console.log("reset answer")
+    }, 2000);
 }
 
 async function askAI(statement, options, multichoice) {

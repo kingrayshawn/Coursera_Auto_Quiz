@@ -109,6 +109,5 @@ function autofill(Statements, submit) {
         setTimeout(() => {
             document.querySelector('button[data-test="submit-button"]').click();
         }, 1000);
-
     }
 }
