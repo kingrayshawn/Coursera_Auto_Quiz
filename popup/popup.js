@@ -57,6 +57,9 @@ function show_on_popup(statements, options, multiChoice) {
                 for (let answer of answers) { 
                     if(ansIndex != "") ansIndex += ", ";
                     ansIndex += Options[i].indexOf(answer) + 1;
+
+                    // suggest answer appears 0
+                    if(Options[i].indexOf(answer) == -1) alert(Statements[i] + " : " + answers)
                 }
             } else {
                 ansIndex = "asking";

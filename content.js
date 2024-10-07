@@ -104,7 +104,6 @@ function GetAnswer(QBlock) {
 }
 
 
-let isProcessing = false;
 let debounceTimeout = null;
 
 const observer = new MutationObserver(async () => {
@@ -114,11 +113,8 @@ const observer = new MutationObserver(async () => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         console.log("in")
-        if (isProcessing) return;
-        isProcessing = true;
         await GetQuestion();
         console.log("out")
-        isProcessing = false;
     }, 1000);
 });
 

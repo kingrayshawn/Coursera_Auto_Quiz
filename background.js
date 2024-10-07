@@ -6,7 +6,7 @@ var UserChoice = []
 var useAIanswer = true
 
 
-const API_KEY = 'Your_google_gemini_API_key'
+const API_KEY = 'AIzaSyCvhGHyvM1fUOSQ6VWSIRiyzsVf84lFBaA'
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
@@ -20,6 +20,7 @@ function getStorageData(key) {
 }
 
 function setStorageData(key, data) {
+    console.log(data)
     return new Promise((resolve, reject) => {
         chrome.storage.local.set({ [key]: data }, function () {
             if (chrome.runtime.lastError) {
@@ -52,6 +53,7 @@ function sameArray(arr1, arr2) {
 function emptyArray(arr) {
     if (!arr.length) return true;
     for (let item of arr) {
+        if (typeof item == 'boolean') return false;
         if (item.length) return false;
     }
     return true;
@@ -59,7 +61,7 @@ function emptyArray(arr) {
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     (async () => {
-        if(API_KEY == "Your_google_gemini_API_key") useAIanswer = false;
+        if (API_KEY == "Your_google_gemini_API_key") useAIanswer = false;
         else useAIanswer = true;
 
         if (request.header == "sent questions") {
@@ -76,7 +78,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 async function processing_data(statements, options, multiChoice, userChoice, answers) {
     let need_processing_questions = true;
-    if (emptyArray(options) || emptyArray(multiChoice)) need_processing_questions = false;
+    if (emptyArray(statements) || emptyArray(options) || emptyArray(multiChoice)) need_processing_questions = false;
     if (sameArray(statements, Statements) && sameArray(options, Options)) need_processing_questions = false;
 
     if (sameArray(statements, Statements)) { // same question
@@ -92,8 +94,8 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
     }
 
     let need_processing_answers = true;
-    if (sameArray(answers, Answers)) need_processing_answers = false;
-    else if (emptyArray(answers) || emptyArray(UserChoice)) need_processing_answers = false;
+    if (emptyArray(answers) || emptyArray(UserChoice)) need_processing_answers = false;
+    // if (sameArray(answers, Answers)) need_processing_answers = false;
 
     Answers = JSON.parse(JSON.stringify(answers));
 
@@ -104,14 +106,17 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
 async function processing_questions() {
     console.log("processing_questions");
     for (let i = 0; i < Statements.length; i++) {
-        if (!MultiChoice[i].length || emptyArray(Options[i])) continue;
+        if (emptyArray(MultiChoice[i]) || emptyArray(Options[i])) continue;
+        console.log("Load Q" + (i + 1));
 
         let storageData = await getStorageData(Statements[i]);
-        if (storageData) continue; // already stored 
+        if (storageData) continue; // already stored
 
         if (useAIanswer && !MultiChoice[i][0]) {
+            console.log("Store Q" + (i + 1) + " by AI");
             await askAI(Statements[i], Options[i], MultiChoice[i][0]);
         } else {
+            console.log("Store Q" + (i + 1));
             await setStorageData(Statements[i], Options[i]);
         }
     }
@@ -131,11 +136,15 @@ async function processing_answers() {
                 if (Answers[i][0] == "Correct") {
                     let new_answer = UserChoice[i]; // All correct
                     await setStorageData(Statements[i], new_answer);
+                    console.log("Q" + (i + 1) + " Get correct answer");
                 } else {
                     new_answer = Options[i]; // not correct
+                    
                     if (new_answer.length > 1 && useAIanswer) {
+                        console.log("Q" + (i + 1) + " Update answer by AI");
                         await askAI(Statements[i], new_answer, MultiChoice[i][0]);
                     } else {
+                        console.log("Q" + (i + 1) + " Update answer");
                         await setStorageData(Statements[i], new_answer);
                     }
                 }
@@ -146,38 +155,35 @@ async function processing_answers() {
                         new_answer.push(UserChoice[i][j]);
                     }
                 }
+                console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
             }
         } else {
             if (Answers[i][0] == "Correct") {
                 let new_answer = UserChoice[i];
+                console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
+
             } else { // Incorrect
                 let new_answer = storageData.filter(item => item !== UserChoice[i][0]);
+                
                 if (new_answer.length > 1 && useAIanswer) {
+                    console.log("Q" + (i + 1) + " Update answer by AI");
                     await askAI(Statements[i], new_answer, MultiChoice[i][0]);
                 } else {
+                    console.log("Q" + (i + 1) + " Update answer");
                     await setStorageData(Statements[i], new_answer);
                 }
             }
-
         }
-
-
     }
-    setTimeout(() => {
-        Answers = []
-        console.log("reset answer")
-    }, 2000);
 }
 
 async function askAI(statement, options, multichoice) {
-
     let message = statement + "\n"
     for (let i = 0; i < options.length; i++) {
         message += "options" + i + " : " + options[i] + "\n";
     }
-
 
     if (multichoice) message += "This is a multiple choice question, you can choose multiple answers\n";
     message += "only output the number of the correct option, don't explain\n"
@@ -224,11 +230,6 @@ async function askAI(statement, options, multichoice) {
                     new_options.unshift(AIanswer);
                 }
             }
-            console.log("update answer by AI:\n" + options + "\n>\n" + new_options);
-
-            console.log(message);
-            console.log(AIrespone);
-
             await setStorageData(statement, new_options);
         } else {
 
