@@ -2,6 +2,14 @@ var Statements = []
 var Options = []
 var MultiChoice = []
 
+function emptyArray(arr) {
+    if (!arr.length) return true;
+    for (let item of arr) {
+        if (item.length) return false;
+    }
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     chrome.runtime.sendMessage({ header: "get questions" }, function (response) {
         show_on_popup(response.Statements, response.Options, response.MultiChoice);
@@ -26,13 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function emptyArray(arr) {
-    if (!arr.length) return true;
-    for (let item of arr) {
-        if (item.length) return false;
-    }
-    return true;
-}
 
 function show_on_popup(statements, options, multiChoice) {
     if (emptyArray(options)) {

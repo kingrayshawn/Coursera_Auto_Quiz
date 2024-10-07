@@ -1,4 +1,4 @@
-async function GetQuestion() {
+function GetQuestion() {
     const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
     if (!QBlock.length) return;
 
@@ -28,6 +28,7 @@ async function GetQuestion() {
         QCount++;
     });
 
+    console.log("Get Data : ")
     console.log(Statements)
     console.log(Options)
     console.log(MultiChoice)
@@ -104,7 +105,10 @@ function GetAnswer(QBlock) {
 let debounceTimeout = null;
 
 const observer = new MutationObserver(async () => {
-    GetQuestion();
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(async () => {
+        GetQuestion();
+    }, 2000);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });

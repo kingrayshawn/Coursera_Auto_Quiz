@@ -60,20 +60,17 @@ function emptyArray(arr) {
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    (async () => {
-        if (API_KEY == "Your_google_gemini_API_key" || API_KEY == "") useAIanswer = false;
-        else useAIanswer = true;
+    if (API_KEY == "Your_google_gemini_API_key" || API_KEY == "") useAIanswer = false;
+    else useAIanswer = true;
 
-        if (request.header == "sent questions") {
-            await processing_data(request.Statements, request.Options, request.MultiChoice, request.UserChoice, request.Answers)
-            sendResponse({ status: "success" });
-        } else if (request.header == "get questions") {
-            sendResponse({ Statements: Statements, Options: Options, MultiChoice: MultiChoice });
-        } else {
-            sendResponse({ status: "unknown header" });
-        }
-    })();
-    return true;
+    if (request.header == "sent questions") {
+        processing_data(request.Statements, request.Options, request.MultiChoice, request.UserChoice, request.Answers)
+        sendResponse({ status: "success" });
+    } else if (request.header == "get questions") {
+        sendResponse({ Statements: Statements, Options: Options, MultiChoice: MultiChoice });
+    } else {
+        sendResponse({ status: "unknown header" });
+    }
 });
 
 async function processing_data(statements, options, multiChoice, userChoice, answers) {
@@ -189,7 +186,6 @@ async function askAI(statement, options, multichoice) {
     for (let i = 0; i < options.length; i++) {
         message += "options" + i + " : " + options[i] + "\n";
     }
-
     if (multichoice) message += "This is a multiple choice question, you can choose multiple answers\n";
     message += "only output the number of the correct option, don't explain\n"
 
@@ -205,43 +201,39 @@ async function askAI(statement, options, multichoice) {
         ]
     };
 
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(prompt)
-        });
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(prompt)
+    });
 
-        if (response.ok) {
-            const data = await response.json();
-            const AIrespone = data.candidates[0].content.parts[0].text
+    if (response.ok) {
+        const data = await response.json();
+        const AIrespone = data.candidates[0].content.parts[0].text
 
-            let new_options = []
-            if (multichoice) {
-                let index = AIrespone.split(',').map(item => parseInt(item.trim(), 10));
-                for (let idx of index) {
-                    if (!isNaN(idx) && 0 <= idx && idx < options.length) {
-                        new_options.push(options[idx]);
-                    }
-                }
-            } else {
-                let idx = parseInt(AIrespone, 10)
-
-                new_options = options.slice();
+        let new_options = []
+        if (multichoice) {
+            let index = AIrespone.split(',').map(item => parseInt(item.trim(), 10));
+            for (let idx of index) {
                 if (!isNaN(idx) && 0 <= idx && idx < options.length) {
-                    let AIanswer = new_options.splice(idx, 1)[0];
-                    new_options.unshift(AIanswer);
+                    new_options.push(options[idx]);
                 }
             }
-            await setStorageData(statement, new_options);
         } else {
+            let idx = parseInt(AIrespone, 10)
 
-            await setStorageData(statement, options);
-            throw new Error(`HTTP error! status: ${response.status}`);
+            new_options = options.slice();
+            if (!isNaN(idx) && 0 <= idx && idx < options.length) {
+                let AIanswer = new_options.splice(idx, 1)[0];
+                new_options.unshift(AIanswer);
+            }
         }
-    } catch (error) {
-        console.error('Error:', error);
+        await setStorageData(statement, new_options);
+    } else {
+
+        await setStorageData(statement, options);
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
 }
