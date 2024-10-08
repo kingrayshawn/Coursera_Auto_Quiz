@@ -6,7 +6,7 @@ var UserChoice = []
 var useAIanswer = true
 
 
-const API_KEY = 'Your_google_gemini_API_ke'
+const API_KEY = 'Your_google_gemini_API_key'
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
