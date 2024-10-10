@@ -5,5 +5,5 @@
 4. Go go a Coursera quiz page and click this extension. You will see suggested answers, and you can click either "Fill" to select the options or "Fill and Submit" to automatically choose and submit the answers.
 
 ## Troubleshooting
-1. If the suggested answers don't appear, please reload the page.
-2. If the suggested answer shows "asking", it means the AI is processing the answer. Please wait a moment and click the extension again.
+1. If the suggested answers don't appear in 5 seconds, please reload the page.
+

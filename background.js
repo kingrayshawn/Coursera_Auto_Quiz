@@ -5,8 +5,7 @@ var MultiChoice = []
 var UserChoice = []
 var useAIanswer = true
 
-
-const API_KEY = 'AIzaSyA_065-BNjczBsayycwkPIft99hEemkNXU'
+importScripts('API_KEY.js');
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
@@ -60,7 +59,7 @@ function emptyArray(arr) {
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (API_KEY == "Your_google_gemini_API_key" || API_KEY == "") useAIanswer = false;
+    if (API_KEY == "Your_Gooele_Gemini_API_Key") useAIanswer = false;
     else useAIanswer = true;
 
     if (request.header == "sent questions") {
