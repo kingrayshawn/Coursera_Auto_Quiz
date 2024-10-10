@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.runtime.sendMessage({ header: "get questions" }, function (response) {
             let change = update(response);
             if (change) document.getElementById('questionList').innerHTML = '';
-            show_on_popup(); 
+            show_on_popup();
         });
     }, 500);
 });
@@ -118,9 +118,9 @@ async function show_on_popup() {
         }
         let questionItem = document.querySelector(`div#questionList div#q${i + 1}`);
         let answerText = `${i + 1} : ${ansIndex}`
-        
+
         if (questionItem) {
-            if(answerText == questionItem.innerText) continue;
+            if (answerText == questionItem.innerText) continue;
             questionItem.innerText = answerText;
         } else {
             questionItem = document.createElement('div');
