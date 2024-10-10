@@ -6,7 +6,7 @@ var UserChoice = []
 var useAIanswer = true
 
 
-const API_KEY = 'Your_google_gemini_API_key'
+const API_KEY = 'AIzaSyA_065-BNjczBsayycwkPIft99hEemkNXU'
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
@@ -100,6 +100,7 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
     if (need_processing_questions) await processing_questions();
 }
 
+
 async function processing_questions() {
     console.log("--------------------processing_questions--------------------");
     for (let i = 0; i < Statements.length; i++) {
@@ -109,10 +110,10 @@ async function processing_questions() {
         let storageData = await getStorageData(Statements[i]);
         if (storageData) continue; // already stored
 
-        if (useAIanswer && !MultiChoice[i][0]) {
+        if (useAIanswer && MultiChoice[i][0] != true) { // fill-in or singleChoice question
             console.log("Store Q" + (i + 1) + " by AI");
             await askAI(Statements[i], Options[i], MultiChoice[i][0]);
-        } else {
+        } else { // multiChoice
             console.log("Store Q" + (i + 1));
             await setStorageData(Statements[i], Options[i]);
         }
@@ -123,12 +124,12 @@ async function processing_answers() {
     console.log("--------------------processing_answers--------------------");
 
     for (let i = 0; i < Answers.length; i++) {
-        if (MultiChoice[i][0] == null) continue;
+        // if (MultiChoice[i][0] == null) continue;
 
         let storageData = await getStorageData(Statements[i]);
         if (!storageData) storageData = Options[i];
 
-        if (MultiChoice[i][0]) { // multiple Choice
+        if (MultiChoice[i][0] == true) { // multiple Choice
             if (Answers[i].length == 1) { // no answer options
                 if (Answers[i][0] == "Correct") {
                     let new_answer = UserChoice[i]; // All correct
@@ -136,7 +137,7 @@ async function processing_answers() {
                     console.log("Q" + (i + 1) + " Get correct answer");
                 } else {
                     new_answer = Options[i]; // not correct
-                    
+
                     if (new_answer.length > 1 && useAIanswer) {
                         console.log("Q" + (i + 1) + " Update answer by AI");
                         await askAI(Statements[i], new_answer, MultiChoice[i][0]);
@@ -155,7 +156,7 @@ async function processing_answers() {
                 console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
             }
-        } else {
+        } else if (MultiChoice[i][0] == false) {
             if (Answers[i][0] == "Correct") {
                 let new_answer = UserChoice[i];
                 console.log("Q" + (i + 1) + " Get correct answer");
@@ -163,13 +164,28 @@ async function processing_answers() {
 
             } else { // Incorrect
                 let new_answer = storageData.filter(item => item !== UserChoice[i][0]);
-                
+
                 if (new_answer.length > 1 && useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
                     await askAI(Statements[i], new_answer, MultiChoice[i][0]);
                 } else {
                     console.log("Q" + (i + 1) + " Update answer");
                     await setStorageData(Statements[i], new_answer);
+                }
+            }
+        } else if (MultiChoice[i][0] == "fill-in") {
+            if (Answers[i][0] == "Correct") {
+                let new_answer = UserChoice[i];
+                console.log("Q" + (i + 1) + " Get correct answer");
+                await setStorageData(Statements[i], new_answer);
+
+            } else { // Incorrect
+                if (useAIanswer) {
+                    console.log("Q" + (i + 1) + " Update answer by AI");
+                    await askAI(Statements[i], Options[i], MultiChoice[i][0]);
+                } else {
+                    console.log("Q" + (i + 1) + " Update answer");
+                    await setStorageData(Statements[i], "");
                 }
             }
         }
@@ -183,11 +199,16 @@ async function processing_answers() {
 
 async function askAI(statement, options, multichoice) {
     let message = statement + "\n"
-    for (let i = 0; i < options.length; i++) {
-        message += "options" + i + " : " + options[i] + "\n";
+
+    if (multichoice == 'fill-in') {
+        message += "This is a fill-in question. Just tell me the answer. Don't output other symbols, and don't explain.\n";
+    } else {
+        for (let i = 0; i < options.length; i++) {
+            message += "options" + i + " : " + options[i] + "\n";
+        }
+        if (multichoice) message += "This is a multiple-choice question; you can choose multiple answers.\n";
+        message += "Only output the number of the correct options; do not explain.\n"
     }
-    if (multichoice) message += "This is a multiple choice question, you can choose multiple answers\n";
-    message += "only output the number of the correct option, don't explain\n"
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
 
@@ -213,8 +234,14 @@ async function askAI(statement, options, multichoice) {
         const data = await response.json();
         const AIrespone = data.candidates[0].content.parts[0].text
 
+        console.log(message)
+        console.log(AIrespone)
+
         let new_options = []
-        if (multichoice) {
+        if (multichoice == 'fill-in') {
+            new_options.push(AIrespone);
+
+        } else if (multichoice) {
             let index = AIrespone.split(',').map(item => parseInt(item.trim(), 10));
             for (let idx of index) {
                 if (!isNaN(idx) && 0 <= idx && idx < options.length) {

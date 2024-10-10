@@ -53,30 +53,26 @@ function GetStatement(QBlock) {
 
 function GetMultiChoice(QBlock) {
     let multiChoice = []
-    const checkbox = QBlock.querySelectorAll('input[type="checkbox"]');
+    const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
     const radio = QBlock.querySelectorAll('input[type="radio"]');
-    if (checkbox.length) multiChoice.push(true);
-    if (radio.length) multiChoice.push(false);
+    const fillinbox = QBlock.querySelector('input[type="text"][placeholder="Enter answer here"]');
+    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
+
+    if (checkboxes.length) multiChoice.push(true);
+    else if (radio.length) multiChoice.push(false);
+    else if (fillinbox || answerfillinbox) multiChoice.push("fill-in");
+
     return multiChoice;
 }
 
 function GetOptions(QBlock, check) {
-    const ChoiceBlock = QBlock.querySelector('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
-
     let options = []
-    const radios = ChoiceBlock.querySelectorAll('input[type="radio"]');
-    const checkboxes = ChoiceBlock.querySelectorAll('input[type="checkbox"]');
+    const radios = QBlock.querySelectorAll('input[type="radio"]');
+    const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
+    const fillinbox = QBlock.querySelector('input[type="text"][placeholder="Enter answer here"]');
+    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
 
-    if (radios.length) {
-        radios.forEach(radio => {
-            const spanText = radio.nextElementSibling.innerText;
-            if (check) {
-                if (radio.checked) options.push(spanText);
-            } else {
-                options.push(spanText);
-            }
-        });
-    } else if (checkboxes.length) {
+    if (checkboxes.length) {
         checkboxes.forEach(checkbox => {
             const spanText = checkbox.nextElementSibling.innerText;
             if (check) {
@@ -85,6 +81,28 @@ function GetOptions(QBlock, check) {
                 options.push(spanText);
             }
         });
+
+    } else if (radios.length) {
+        radios.forEach(radio => {
+            const spanText = radio.nextElementSibling.innerText;
+            if (check) {
+                if (radio.checked) options.push(spanText);
+            } else {
+                options.push(spanText);
+            }
+        });
+    } else if (answerfillinbox) {
+        if (check) {
+            options.push(answerfillinbox.innerText);
+        } else {
+            options.push("fill-in");
+        }
+    } else if (fillinbox) {
+        if (check) {
+            if (fillinbox.value.length) options.push(fillinbox.value);
+        } else {
+            options.push("fill-in");
+        }
     }
     return options;
 }
@@ -108,7 +126,7 @@ const observer = new MutationObserver(async () => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         GetQuestion();
-    }, 2000);
+    }, 1500);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
