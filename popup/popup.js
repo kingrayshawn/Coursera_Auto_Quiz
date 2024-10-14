@@ -135,7 +135,7 @@ async function show_on_popup() {
 
 
 function autofill(Statements, submit) {
-    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-kntsav');
+    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
 
     for (let i = 0; i < QBlock.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
