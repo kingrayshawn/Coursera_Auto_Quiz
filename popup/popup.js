@@ -93,6 +93,8 @@ function getStorageData(key) {
 
 
 async function show_on_popup() {
+    if(emptyArray(Statements)) return;
+    
     for (let i = 0; i < Statements.length; i++) {
         let ansIndex = "";
 
@@ -113,7 +115,7 @@ async function show_on_popup() {
                     if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Unable to find the answer in database.");
                 }
             }
-        } else {
+        } else if (!emptyArray(Options)) {
             ansIndex = "asking";
         }
         let questionItem = document.querySelector(`div#questionList div#q${i + 1}`);

@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 async function processing_data(statements, options, multiChoice, userChoice, answers) {
     let need_processing_questions = true;
-    if (emptyArray(statements) || emptyArray(options) || emptyArray(multiChoice)) need_processing_questions = false;
+    if (emptyArray(options) || emptyArray(multiChoice)) need_processing_questions = false;
     if (sameArray(statements, Statements) && sameArray(options, Options)) need_processing_questions = false;
 
     if (sameArray(statements, Statements)) { // same question

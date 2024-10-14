@@ -1,6 +1,5 @@
 function GetQuestion() {
     const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
-    if (!QBlock.length) return;
     
     let Options = []
     let Statements = []
