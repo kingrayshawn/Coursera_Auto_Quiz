@@ -93,28 +93,45 @@ function getStorageData(key) {
 
 
 async function show_on_popup() {
-    if (emptyArray(Statements)) return;
+    if (emptyArray(Statements) || emptyArray(MultiChoice)) return;
 
     for (let i = 0; i < Statements.length; i++) {
-        let result = "";
+        let result = ""
+        let correctness = false
 
         let storageAnswer = await getStorageData(Statements[i]);
         if (storageAnswer) {
             if (MultiChoice[i][0] == 'fill-in') {
-                result = [storageAnswer[0]]
+                let answer = storageAnswer[0]
+                if(answer.startsWith("Correct:")) {
+                    correctness = true
+                    answer = answer.slice("Correct:".length);
+                }
+                result = [answer]
+
             } else if (MultiChoice[i][0] == true) {
                 for (let answer of storageAnswer) {
                     if (result != "") result += ", ";
+                    
+                    if(answer.startsWith("Correct:")) {
+                        correctness = true
+                        answer = answer.slice("Correct:".length);
+                    }
                     result += Options[i].indexOf(answer) + 1;
 
                     if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
                 }
             } else if (MultiChoice[i][0] == false) {
-                if (result != "") result += ", ";
-                result += Options[i].indexOf(storageAnswer[0]) + 1;
+                let answer = storageAnswer[0]
+                if(answer.startsWith("Correct:")) {
+                    correctness = true
+                    answer = answer.slice("Correct:".length);
+                }
+                result += Options[i].indexOf(answer) + 1;
 
-                if (Options[i].indexOf(storageAnswer[0]) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + storageAnswer[0]);
-                if (storageAnswer.length > 1) {
+                if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
+
+                if (!correctness) {
                     result += "; or "
                     for (let j = 1; j < storageAnswer.length; j++) {
                         if (j != 1) result += ", ";
@@ -124,11 +141,15 @@ async function show_on_popup() {
                     }
                 }
             }
-        } else if (!emptyArray(Options)) {
+        } else {
             result = "asking";
         }
+        
         let questionItem = document.querySelector(`div#questionList div#q${i + 1}`);
         let answerText = `${i + 1} : ${result}`
+        if(correctness) answerText = "✅" + answerText
+        else answerText = "⚠️" + answerText
+
 
         if (questionItem) {
             if (answerText == questionItem.innerText) continue;
@@ -140,7 +161,7 @@ async function show_on_popup() {
 
             const questionList = document.getElementById('questionList');
             questionList.appendChild(questionItem);
-        }
+        } 
     }
 }
 
@@ -150,18 +171,26 @@ function autofill(Statements, submit) {
 
     for (let i = 0; i < QBlock.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
+            let Answers = result[Statements[i]].map(str => {
+                if (str.startsWith("Correct:")) {
+                    return str.slice("Correct:".length);
+                }
+                return str;
+            });
+
             const radios = QBlock[i].querySelectorAll('input[type="radio"]');
             const checkboxes = QBlock[i].querySelectorAll('input[type="checkbox"]');
-            const fillinbox = QBlock[i].querySelector('input[type="text"][placeholder="Enter answer here"]');
+            const fillinbox = QBlock[i].querySelector('input[type="text"]');
 
             if (radios.length) {
-                let answer = [result[Statements[i]][0]]
+                let answer = [Answers[0]]
                 radios.forEach(radio => {
                     const optionStatement = radio.nextElementSibling.innerText;
                     if (answer.includes(optionStatement) && !radio.checked) radio.click()
                 });
             } else if (checkboxes.length) {
-                let answer = result[Statements[i]]
+                let answer = Answers
+
                 checkboxes.forEach(checkbox => {
                     const optionStatement = checkbox.nextElementSibling.innerText;
 
@@ -169,7 +198,7 @@ function autofill(Statements, submit) {
                     if (!answer.includes(optionStatement) && checkbox.checked) checkbox.click()
                 });
             } else if (fillinbox) {
-                let answer = [result[Statements[i]][0]]
+                let answer = [Answers[0]]
 
                 fillinbox.value = answer;
                 fillinbox.dispatchEvent(new Event('input', { bubbles: true }));

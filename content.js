@@ -1,13 +1,19 @@
+let Options = []
+let Statements = []
+let MultiChoice = []
+let UserChoice = []
+let Answers = []
+
 function GetQuestion() {
     const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
-    
-    let Options = []
-    let Statements = []
-    let MultiChoice = []
-    let UserChoice = []
-    let Answers = []
-    let QCount = 1
 
+    Options = []
+    Statements = []
+    MultiChoice = []
+    UserChoice = []
+    Answers = []
+
+    let QCount = 1
     QBlock.forEach(QBlock => {
         let statement = GetStatement(QBlock)
         Statements.push(QCount + statement)
@@ -18,7 +24,7 @@ function GetQuestion() {
         let multiChoice = GetMultiChoice(QBlock)
         MultiChoice.push(multiChoice)
 
-        let userChoice = GetOptions(QBlock, check = true)
+        let userChoice = GetOptions(QBlock, GetUserChoice = true)
         UserChoice.push(userChoice)
 
         let answers = GetAnswer(QBlock)
@@ -26,15 +32,6 @@ function GetQuestion() {
 
         QCount++;
     });
-
-    console.log("Get Data : ")
-    console.log(Statements)
-    console.log(Options)
-    console.log(MultiChoice)
-    console.log(UserChoice)
-    console.log(Answers)
-
-    chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers });
 }
 
 function GetStatement(QBlock) {
@@ -54,27 +51,27 @@ function GetMultiChoice(QBlock) {
     let multiChoice = []
     const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
     const radio = QBlock.querySelectorAll('input[type="radio"]');
-    const fillinbox = QBlock.querySelector('input[type="text"][placeholder="Enter answer here"]');
-    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
+    // const fillinbox = QBlock.querySelector('input[type="text"]');
+    // const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
 
     if (checkboxes.length) multiChoice.push(true);
     else if (radio.length) multiChoice.push(false);
-    else if (fillinbox || answerfillinbox) multiChoice.push("fill-in");
+    else multiChoice.push("fill-in");
 
     return multiChoice;
 }
 
-function GetOptions(QBlock, check) {
+function GetOptions(QBlock, GetUserChoice) {
     let options = []
     const radios = QBlock.querySelectorAll('input[type="radio"]');
     const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
-    const fillinbox = QBlock.querySelector('input[type="text"][placeholder="Enter answer here"]');
+    const fillinbox = QBlock.querySelector('input[type="text"]');
     const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
 
     if (checkboxes.length) {
         checkboxes.forEach(checkbox => {
             const spanText = checkbox.nextElementSibling.innerText;
-            if (check) {
+            if (GetUserChoice) {
                 if (checkbox.checked) options.push(spanText);
             } else {
                 options.push(spanText);
@@ -84,31 +81,25 @@ function GetOptions(QBlock, check) {
     } else if (radios.length) {
         radios.forEach(radio => {
             const spanText = radio.nextElementSibling.innerText;
-            if (check) {
+            if (GetUserChoice) {
                 if (radio.checked) options.push(spanText);
             } else {
                 options.push(spanText);
             }
         });
     } else if (answerfillinbox) {
-        if (check) {
+        if (GetUserChoice) {
             options.push(answerfillinbox.innerText);
-        } else {
-            options.push("fill-in");
         }
     } else if (fillinbox) {
-        if (check) {
+        if (GetUserChoice) {
             if (fillinbox.value.length) options.push(fillinbox.value);
-        } else {
-            options.push("fill-in");
         }
     }
     return options;
 }
 
 function GetAnswer(QBlock) {
-    const AnswerBlock = QBlock.querySelector('.rc-FormPartsQuestion__row.pii-hide.css-rdvpb7');
-
     let answers = []
     const GradeFeedback = QBlock.querySelectorAll('[data-testid="GradeFeedback-caption"]');
     GradeFeedback.forEach(answer => {
@@ -122,10 +113,21 @@ function GetAnswer(QBlock) {
 let debounceTimeout = null;
 
 const observer = new MutationObserver(async () => {
-    if (debounceTimeout) clearTimeout(debounceTimeout);
+    if(document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7').length == 0) return;
+
+    GetQuestion();
+
+    if (debounceTimeout) return;
     debounceTimeout = setTimeout(async () => {
-        GetQuestion();
-    }, 1500);
+        console.log("Sent Data : ")
+        console.log(Statements)
+        console.log(Options)
+        console.log(MultiChoice)
+        console.log(UserChoice)
+        console.log(Answers)
+        chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers });
+        debounceTimeout = null;
+    }, 800);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });

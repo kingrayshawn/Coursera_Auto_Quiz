@@ -64,7 +64,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
     if (request.header == "sent questions") {
         processing_data(request.Statements, request.Options, request.MultiChoice, request.UserChoice, request.Answers)
-        sendResponse({ status: "success" });
+        sendResponse({ status: "successfully get questions" });
     } else if (request.header == "get questions") {
         sendResponse({ Statements: Statements, Options: Options, MultiChoice: MultiChoice });
     } else {
@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 async function processing_data(statements, options, multiChoice, userChoice, answers) {
     let need_processing_questions = true;
-    if (emptyArray(options) || emptyArray(multiChoice)) need_processing_questions = false;
+    if (emptyArray(multiChoice)) need_processing_questions = false;
     if (sameArray(statements, Statements) && sameArray(options, Options)) need_processing_questions = false;
 
     if (sameArray(statements, Statements)) { // same question
@@ -103,7 +103,6 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
 async function processing_questions() {
     console.log("--------------------processing_questions--------------------");
     for (let i = 0; i < Statements.length; i++) {
-        if (emptyArray(MultiChoice[i]) || emptyArray(Options[i])) continue;
         console.log("Load Q" + (i + 1));
 
         let storageData = await getStorageData(Statements[i]);
@@ -131,9 +130,9 @@ async function processing_answers() {
         if (MultiChoice[i][0] == true) { // multiple Choice
             if (Answers[i].length == 1) { // no answer options
                 if (Answers[i][0] == "Correct") {
-                    let new_answer = UserChoice[i]; // All correct
-                    await setStorageData(Statements[i], new_answer);
+                    let new_answer = UserChoice[i].map(str => "Correct:" + str);
                     console.log("Q" + (i + 1) + " Get correct answer");
+                    await setStorageData(Statements[i], new_answer);
                 } else {
                     new_answer = Options[i]; // not correct
 
@@ -152,19 +151,24 @@ async function processing_answers() {
                         new_answer.push(UserChoice[i][j]);
                     }
                 }
+                new_answer = new_answer.map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
             }
         } else if (MultiChoice[i][0] == false) {
             if (Answers[i][0] == "Correct") {
-                let new_answer = UserChoice[i];
+                let new_answer = UserChoice[i].map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
 
             } else { // Incorrect
                 let new_answer = storageData.filter(item => item !== UserChoice[i][0]);
 
-                if (new_answer.length > 1 && useAIanswer) {
+                if (new_answer.length == 1) {
+                    new_answer = new_answer.map(str => "Correct:" + str);
+                    console.log("Q" + (i + 1) + " Get correct answer");
+                    await setStorageData(Statements[i], new_answer);
+                }else if (useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
                     await askAI(Statements[i], new_answer, MultiChoice[i][0]);
                 } else {
@@ -174,7 +178,7 @@ async function processing_answers() {
             }
         } else if (MultiChoice[i][0] == "fill-in") {
             if (Answers[i][0] == "Correct") {
-                let new_answer = UserChoice[i];
+                let new_answer = UserChoice[i].map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
                 await setStorageData(Statements[i], new_answer);
 
@@ -184,7 +188,7 @@ async function processing_answers() {
                     await askAI(Statements[i], Options[i], MultiChoice[i][0]);
                 } else {
                     console.log("Q" + (i + 1) + " Update answer");
-                    await setStorageData(Statements[i], "");
+                    await setStorageData(Statements[i], "unknown");
                 }
             }
         }
@@ -193,32 +197,32 @@ async function processing_answers() {
     setTimeout(() => {
         Answers = []
         console.log("reset answer")
-    }, 2000);
+    }, 3000);
 }
 
 async function askAI(statement, options, multichoice) {
     let message = statement + "\n"
 
-    if (multichoice == 'fill-in') {
-        message += "This is a fill-in question. Just tell me the answer. Don't output other symbols, and don't explain.\n";
-    } else {
+    if(typeof multichoice == 'boolean'){
         for (let i = 0; i < options.length; i++) {
             message += "options" + i + " : " + options[i] + "\n";
         }
         if (multichoice) message += "This is a multiple-choice question; you can choose multiple answers.\n";
         message += "Only output the number of the correct options; do not explain.\n"
+    }else{
+        message += "This is a fill-in question. Just tell me the final answer. Don't output other symbols, and don't explain.\n";
     }
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
 
-    const prompt = {
+    const body = {
         contents: [
             {
                 parts: [
                     { text: message }
                 ]
             }
-        ]
+        ],
     };
 
     const response = await fetch(apiUrl, {
@@ -226,7 +230,7 @@ async function askAI(statement, options, multichoice) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(prompt)
+        body: JSON.stringify(body)
     });
 
     if (response.ok) {
@@ -258,8 +262,10 @@ async function askAI(statement, options, multichoice) {
         }
         await setStorageData(statement, new_options);
     } else {
+        console.error(`Gemini api request fail! status: ${response.status}`);
 
+        if (multichoice == 'fill-in') options = ["unknown"]
         await setStorageData(statement, options);
-        console.error(`HTTP error! status: ${response.status}`);
+
     }
 }
