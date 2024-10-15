@@ -4,5 +4,8 @@
 3. Load the extension into Chrome (chrome://extensions/)
 4. Go go a Coursera quiz page and click this extension. You will see suggested answers, and you can click either "Fill" to select the options or "Fill and Submit" to automatically choose and submit the answers.
 
+## Feature
+1. When you click the "Fill" or "Fill and Submit" button, this extension will replace your original answer. Please note that if you want to modify your original answer, do so after clicking the button.
+
 ## Troubleshooting
 1. If the suggested answers don't appear in 5 seconds, please reload the page.

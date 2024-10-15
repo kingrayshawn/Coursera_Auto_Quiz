@@ -93,33 +93,42 @@ function getStorageData(key) {
 
 
 async function show_on_popup() {
-    if(emptyArray(Statements)) return;
-    
+    if (emptyArray(Statements)) return;
+
     for (let i = 0; i < Statements.length; i++) {
-        let ansIndex = "";
+        let result = "";
 
-        let storageData = await getStorageData(Statements[i]);
-        if (storageData) {
-            let answers = []
-            if (MultiChoice[i][0] == true) answers = storageData
-            else answers = [storageData[0]]
-
+        let storageAnswer = await getStorageData(Statements[i]);
+        if (storageAnswer) {
             if (MultiChoice[i][0] == 'fill-in') {
-                ansIndex = answers
-            } else {
-                for (let answer of answers) {
-                    if (ansIndex != "") ansIndex += ", ";
-                    ansIndex += Options[i].indexOf(answer) + 1;
+                result = [storageAnswer[0]]
+            } else if (MultiChoice[i][0] == true) {
+                for (let answer of storageAnswer) {
+                    if (result != "") result += ", ";
+                    result += Options[i].indexOf(answer) + 1;
 
-                    // suggest answer appears 0
-                    if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Unable to find the answer in database.");
+                    if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
+                }
+            } else if (MultiChoice[i][0] == false) {
+                if (result != "") result += ", ";
+                result += Options[i].indexOf(storageAnswer[0]) + 1;
+
+                if (Options[i].indexOf(storageAnswer[0]) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + storageAnswer[0]);
+                if (storageAnswer.length > 1) {
+                    result += "; or "
+                    for (let j = 1; j < storageAnswer.length; j++) {
+                        if (j != 1) result += ", ";
+                        result += Options[i].indexOf(storageAnswer[j]) + 1;
+
+                        if (Options[i].indexOf(storageAnswer[j]) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + storageAnswer[j]);
+                    }
                 }
             }
         } else if (!emptyArray(Options)) {
-            ansIndex = "asking";
+            result = "asking";
         }
         let questionItem = document.querySelector(`div#questionList div#q${i + 1}`);
-        let answerText = `${i + 1} : ${ansIndex}`
+        let answerText = `${i + 1} : ${result}`
 
         if (questionItem) {
             if (answerText == questionItem.innerText) continue;
