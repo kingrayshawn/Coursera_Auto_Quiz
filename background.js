@@ -63,6 +63,11 @@ function emptyArray(arr) {
     return true;
 }
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (API_KEY == "Your_Gooele_Gemini_API_Key") useAIanswer = false;
     else useAIanswer = true;
@@ -127,7 +132,7 @@ async function processing_questions() {
             }
         }
 
-        if(storageData) continue;
+        if (storageData) continue;
 
         if (useAIanswer && MultiChoice[i][0] != true) { // fill-in or singleChoice question
             console.log("Store Q" + (i + 1) + " by AI");
@@ -278,6 +283,7 @@ async function askAI(statement, options, multichoice) {
 
     try {
         const data = await response.json();
+        console.log(data)
         const AIrespone = data.candidates[0].content.parts[0].text.trim()
 
         let new_options = []
@@ -303,6 +309,7 @@ async function askAI(statement, options, multichoice) {
         return new_options;
     } catch (error) {
         console.error('Error:', error);
+
         if (multichoice == 'fill-in') options = ["unknown"]
         return options;
     }
