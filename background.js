@@ -1,11 +1,13 @@
 var Statements = []
 var Options = []
-var Answers = []
+var Feedback = []
 var MultiChoice = []
 var UserChoice = []
-var useAIanswer = true
+var useAIanswer = false
+var useDBanswer = false
+var Url = ""
 
-importScripts('API_KEY.js');
+importScripts('config.js');
 
 function getStorageData(key) {
     return new Promise((resolve, reject) => {
@@ -19,13 +21,16 @@ function getStorageData(key) {
 }
 
 function setStorageData(key, data) {
-    console.log(data)
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+        let storageData = await getStorageData(key);
+        if (sameArray(data, storageData)) return resolve(false);
+
         chrome.storage.local.set({ [key]: data }, function () {
             if (chrome.runtime.lastError) {
                 return reject(chrome.runtime.lastError);
             }
-            resolve();
+            console.log("Stored to Local : ", data)
+            resolve(true);
         });
     });
 }
@@ -62,8 +67,11 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (API_KEY == "Your_Gooele_Gemini_API_Key") useAIanswer = false;
     else useAIanswer = true;
 
+    if (DB_Address == "Your_DB_Address") useDBanswer = false;
+    else useDBanswer = true;
+
     if (request.header == "sent questions") {
-        processing_data(request.Statements, request.Options, request.MultiChoice, request.UserChoice, request.Answers)
+        processing_data(request.Statements, request.Options, request.MultiChoice, request.UserChoice, request.Feedback, request.Url)
         sendResponse({ status: "successfully get questions" });
     } else if (request.header == "get questions") {
         sendResponse({ Statements: Statements, Options: Options, MultiChoice: MultiChoice });
@@ -72,7 +80,9 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     }
 });
 
-async function processing_data(statements, options, multiChoice, userChoice, answers) {
+async function processing_data(statements, options, multiChoice, userChoice, feedback, url) {
+    Url = url
+
     let need_processing_questions = true;
     if (emptyArray(multiChoice)) need_processing_questions = false;
     if (sameArray(statements, Statements) && sameArray(options, Options)) need_processing_questions = false;
@@ -90,10 +100,10 @@ async function processing_data(statements, options, multiChoice, userChoice, ans
     }
 
     let need_processing_answers = true;
-    if (emptyArray(answers) || emptyArray(UserChoice)) need_processing_answers = false;
-    if (sameArray(answers, Answers)) need_processing_answers = false;
+    if (emptyArray(feedback) || emptyArray(UserChoice)) need_processing_answers = false;
+    if (sameArray(feedback, Feedback)) need_processing_answers = false;
 
-    Answers = JSON.parse(JSON.stringify(answers));
+    Feedback = JSON.parse(JSON.stringify(feedback));
 
     if (need_processing_answers) await processing_answers();
     if (need_processing_questions) await processing_questions();
@@ -106,7 +116,16 @@ async function processing_questions() {
         console.log("Load Q" + (i + 1));
 
         let storageData = await getStorageData(Statements[i]);
-        if (storageData) continue; // already stored
+        if (storageData && storageData[0].startsWith("Correct:")) continue; // has correct answer
+
+        if (useDBanswer) {
+            let DBAnswer = await queryDB(Statements[i]);
+            if (DBAnswer) {
+                console.log("Store Q" + (i + 1) + " by DB");
+                await setStorageData(Statements[i], DBAnswer);
+                continue;
+            }
+        }
 
         if (useAIanswer && MultiChoice[i][0] != true) { // fill-in or singleChoice question
             console.log("Store Q" + (i + 1) + " by AI");
@@ -121,21 +140,24 @@ async function processing_questions() {
 async function processing_answers() {
     console.log("--------------------processing_answers--------------------");
 
-    for (let i = 0; i < Answers.length; i++) {
-        // if (MultiChoice[i][0] == null) continue;
+    for (let i = 0; i < Feedback.length; i++) {
+        if (MultiChoice[i][0] == null) continue;
 
         let storageData = await getStorageData(Statements[i]);
         if (!storageData) storageData = Options[i];
 
         if (MultiChoice[i][0] == true) { // multiple Choice
-            if (Answers[i].length == 1) { // no answer options
-                if (Answers[i][0] == "Correct") {
+            if (Feedback[i].length == 1) { // no answer options
+                if (Feedback[i][0].includes("Correct")) {
+
                     let new_answer = UserChoice[i].map(str => "Correct:" + str);
                     console.log("Q" + (i + 1) + " Get correct answer");
-                    await setStorageData(Statements[i], new_answer);
-                } else {
-                    new_answer = Options[i]; // not correct
+                    let insert_suc = await setStorageData(Statements[i], new_answer);
+                    if (insert_suc) await insertDB(Statements[i], new_answer);
 
+                } else if (Feedback[i][0].includes("Incorrect")) {
+
+                    new_answer = Options[i];
                     if (new_answer.length > 1 && useAIanswer) {
                         console.log("Q" + (i + 1) + " Update answer by AI");
                         await askAI(Statements[i], new_answer, MultiChoice[i][0]);
@@ -144,45 +166,57 @@ async function processing_answers() {
                         await setStorageData(Statements[i], new_answer);
                     }
                 }
+
             } else { // partical correct
                 let new_answer = []
-                for (let j = 0; j < Answers[i].length; j++) {
-                    if (Answers[i][j] == "Correct") {
+                for (let j = 0; j < Feedback[i].length; j++) {
+                    if (Feedback[i][j].includes("Correct")) {
                         new_answer.push(UserChoice[i][j]);
                     }
                 }
                 new_answer = new_answer.map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
-                await setStorageData(Statements[i], new_answer);
+                let insert_suc = await setStorageData(Statements[i], new_answer);
+                if (insert_suc) await insertDB(Statements[i], new_answer);
             }
+
         } else if (MultiChoice[i][0] == false) {
-            if (Answers[i][0] == "Correct") {
+            if (Feedback[i][0].includes("Correct")) {
+
                 let new_answer = UserChoice[i].map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
-                await setStorageData(Statements[i], new_answer);
+                let insert_suc = await setStorageData(Statements[i], new_answer);
+                if (insert_suc) await insertDB(Statements[i], new_answer);
 
-            } else { // Incorrect
+            } else if (Feedback[i][0].includes("Incorrect")) {
                 let new_answer = storageData.filter(item => item !== UserChoice[i][0]);
 
                 if (new_answer.length == 1) {
                     new_answer = new_answer.map(str => "Correct:" + str);
                     console.log("Q" + (i + 1) + " Get correct answer");
-                    await setStorageData(Statements[i], new_answer);
-                }else if (useAIanswer) {
+                    let insert_suc = await setStorageData(Statements[i], new_answer);
+                    if (insert_suc) await insertDB(Statements[i], new_answer);
+
+                } else if (useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
                     await askAI(Statements[i], new_answer, MultiChoice[i][0]);
+
                 } else {
                     console.log("Q" + (i + 1) + " Update answer");
                     await setStorageData(Statements[i], new_answer);
+
                 }
             }
         } else if (MultiChoice[i][0] == "fill-in") {
-            if (Answers[i][0] == "Correct") {
+            if (Feedback[i][0].includes("Correct")) {
+
                 let new_answer = UserChoice[i].map(str => "Correct:" + str);
                 console.log("Q" + (i + 1) + " Get correct answer");
-                await setStorageData(Statements[i], new_answer);
+                let insert_suc = await setStorageData(Statements[i], new_answer);
+                if (insert_suc) await insertDB(Statements[i], new_answer);
 
-            } else { // Incorrect
+            } else if (Feedback[i][0].includes("Incorrect")) {
+
                 if (useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
                     await askAI(Statements[i], Options[i], MultiChoice[i][0]);
@@ -190,26 +224,29 @@ async function processing_answers() {
                     console.log("Q" + (i + 1) + " Update answer");
                     await setStorageData(Statements[i], "unknown");
                 }
+
             }
         }
     }
 
     setTimeout(() => {
-        Answers = []
+        Feedback = []
         console.log("reset answer")
     }, 3000);
 }
 
+
+
 async function askAI(statement, options, multichoice) {
     let message = statement + "\n"
 
-    if(typeof multichoice == 'boolean'){
+    if (typeof multichoice == 'boolean') {
         for (let i = 0; i < options.length; i++) {
             message += "options" + i + " : " + options[i] + "\n";
         }
         if (multichoice) message += "This is a multiple-choice question; you can choose multiple answers.\n";
         message += "Only output the number of the correct options; do not explain.\n"
-    }else{
+    } else {
         message += "This is a fill-in question. Just tell me the final answer. Don't output other symbols, and don't explain.\n";
     }
 
@@ -233,12 +270,13 @@ async function askAI(statement, options, multichoice) {
         body: JSON.stringify(body)
     });
 
-    if (response.ok) {
+    try {
         const data = await response.json();
-        const AIrespone = data.candidates[0].content.parts[0].text
+        // console.log(data)
+        const AIrespone = data.candidates[0].content.parts[0].text.trim()
 
-        console.log(message)
-        console.log(AIrespone)
+        // console.log(message)
+        // console.log(AIrespone)
 
         let new_options = []
         if (multichoice == 'fill-in') {
@@ -261,11 +299,71 @@ async function askAI(statement, options, multichoice) {
             }
         }
         await setStorageData(statement, new_options);
-    } else {
-        console.error(`Gemini api request fail! status: ${response.status}`);
+    } catch (error) {
+        console.error('Error:', error);
 
         if (multichoice == 'fill-in') options = ["unknown"]
         await setStorageData(statement, options);
 
+    }
+}
+
+async function queryDB(statement) {
+    try {
+        const response = await fetch(`${DB_Address}/query`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: statement,
+                password: DB_PASSWORD,
+                url: Url
+            })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(`DB HTTP error! status: ${response.status}`, data);
+            console.log(data);
+
+            return null;
+        } else if (data.answer) {
+            return await JSON.parse(data.answer);
+        } else {
+            return null;
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+async function insertDB(statement, answer) {
+    try {
+        const response = await fetch(`${DB_Address}/insert`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                question: statement,
+                answer: JSON.stringify(answer),
+                password: DB_PASSWORD,
+                url: Url
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(`DB HTTP error! status: ${response.status}`, data);
+            return false;
+        } else {
+            console.log("Stored to DB : ", data)
+            return true;
+        }
+    } catch (error) {
+        console.error('Error:', error);
     }
 }

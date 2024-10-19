@@ -2,16 +2,23 @@ let Options = []
 let Statements = []
 let MultiChoice = []
 let UserChoice = []
-let Answers = []
+let Feedback = []
+let Url = ""
 
 function GetQuestion() {
-    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
+    var QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
+    if (!QBlock.length) QBlock = document.querySelectorAll('div.css-dqaucz');
+    if (!QBlock.length) return false;
+
+    QBlock = Array.from(QBlock).filter(function (element) {
+        return element.querySelector('div.css-4s48ix');
+    });
 
     Options = []
     Statements = []
     MultiChoice = []
     UserChoice = []
-    Answers = []
+    Feedback = []
 
     let QCount = 1
     QBlock.forEach(QBlock => {
@@ -27,22 +34,25 @@ function GetQuestion() {
         let userChoice = GetOptions(QBlock, GetUserChoice = true)
         UserChoice.push(userChoice)
 
-        let answers = GetAnswer(QBlock)
-        Answers.push(answers)
+        let feedback = GetFeedback(QBlock)
+        Feedback.push(feedback)
 
         QCount++;
     });
+    Url = window.location.href.replace(/(attempt|view-attempt|view-feedback|view-submission)$/, '');
+
+    return true;
 }
 
 function GetStatement(QBlock) {
-    let StatementBlock = QBlock.querySelector('div.rc-FormPartsQuestion__contentCell.css-ybrhvy').querySelectorAll('span');
+    let StatementBlock = QBlock.querySelector('div.css-4s48ix').querySelectorAll('span');
+
     let statement = "";
     StatementBlock.forEach(span => {
         if (span.querySelectorAll('span').length === 0 && span.innerText != "") {
             statement += span.innerText;
         }
     });
-
     return statement;
 }
 
@@ -51,12 +61,13 @@ function GetMultiChoice(QBlock) {
     let multiChoice = []
     const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
     const radio = QBlock.querySelectorAll('input[type="radio"]');
-    // const fillinbox = QBlock.querySelector('input[type="text"]');
-    // const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
+
+    const fillinbox = QBlock.querySelector('input[type="text"], input[type="number"]');
+    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
 
     if (checkboxes.length) multiChoice.push(true);
     else if (radio.length) multiChoice.push(false);
-    else multiChoice.push("fill-in");
+    else if (fillinbox || answerfillinbox) multiChoice.push("fill-in");
 
     return multiChoice;
 }
@@ -65,7 +76,7 @@ function GetOptions(QBlock, GetUserChoice) {
     let options = []
     const radios = QBlock.querySelectorAll('input[type="radio"]');
     const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
-    const fillinbox = QBlock.querySelector('input[type="text"]');
+    const fillinbox = QBlock.querySelector('input[type="text"], input[type="number"]');
     const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
 
     if (checkboxes.length) {
@@ -99,23 +110,21 @@ function GetOptions(QBlock, GetUserChoice) {
     return options;
 }
 
-function GetAnswer(QBlock) {
-    let answers = []
-    const GradeFeedback = QBlock.querySelectorAll('[data-testid="GradeFeedback-caption"]');
+function GetFeedback(QBlock) {
+    let feedback = []
+    const GradeFeedback = QBlock.querySelectorAll('div.css-8atqhb');
     GradeFeedback.forEach(answer => {
         const spanText = answer.innerText;
-        answers.push(spanText);
+        feedback.push(spanText);
     });
-    return answers;
+    return feedback;
 }
 
 
 let debounceTimeout = null;
 
 const observer = new MutationObserver(async () => {
-    if(document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7').length == 0) return;
-
-    GetQuestion();
+    if (!GetQuestion()) return;
 
     if (debounceTimeout) return;
     debounceTimeout = setTimeout(async () => {
@@ -124,10 +133,11 @@ const observer = new MutationObserver(async () => {
         console.log(Options)
         console.log(MultiChoice)
         console.log(UserChoice)
-        console.log(Answers)
-        chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Answers: Answers });
+        console.log(Feedback)
+        console.log(Url)
+        chrome.runtime.sendMessage({ header: "sent questions", Statements: Statements, Options: Options, MultiChoice: MultiChoice, UserChoice: UserChoice, Feedback: Feedback, Url: Url });
         debounceTimeout = null;
-    }, 800);
+    }, 1000);
 });
 
 observer.observe(document.body, { childList: true, subtree: true });

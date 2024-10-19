@@ -119,7 +119,7 @@ async function show_on_popup() {
                     }
                     result += Options[i].indexOf(answer) + 1;
 
-                    if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
+                    // if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
                 }
             } else if (MultiChoice[i][0] == false) {
                 let answer = storageAnswer[0]
@@ -129,15 +129,15 @@ async function show_on_popup() {
                 }
                 result += Options[i].indexOf(answer) + 1;
 
-                if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
+                // if (Options[i].indexOf(answer) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + answer);
 
                 if (!correctness) {
-                    result += "; or "
+                    result += " ; or "
                     for (let j = 1; j < storageAnswer.length; j++) {
                         if (j != 1) result += ", ";
                         result += Options[i].indexOf(storageAnswer[j]) + 1;
 
-                        if (Options[i].indexOf(storageAnswer[j]) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + storageAnswer[j]);
+                        // if (Options[i].indexOf(storageAnswer[j]) == -1) alert("Error on Question " + (i + 1) + " : Answer in database is : " + storageAnswer[j]);
                     }
                 }
             }
@@ -149,7 +149,6 @@ async function show_on_popup() {
         let answerText = `${i + 1} : ${result}`
         if(correctness) answerText = "✅" + answerText
         else answerText = "⚠️" + answerText
-
 
         if (questionItem) {
             if (answerText == questionItem.innerText) continue;
@@ -167,7 +166,12 @@ async function show_on_popup() {
 
 
 function autofill(Statements, submit) {
-    const QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
+    var QBlock = document.querySelectorAll('div.rc-FormPartsQuestion.css-1629yt7');
+    if (!QBlock.length) QBlock = document.querySelectorAll('div.css-dqaucz');
+
+    QBlock = Array.from(QBlock).filter(function (element) {
+        return element.querySelector('div.css-4s48ix');
+    });
 
     for (let i = 0; i < QBlock.length; i++) {
         chrome.storage.local.get([Statements[i]], function (result) {
@@ -180,7 +184,7 @@ function autofill(Statements, submit) {
 
             const radios = QBlock[i].querySelectorAll('input[type="radio"]');
             const checkboxes = QBlock[i].querySelectorAll('input[type="checkbox"]');
-            const fillinbox = QBlock[i].querySelector('input[type="text"]');
+            const fillinbox = QBlock[i].querySelector('input[type="text"], input[type="number"]');
 
             if (radios.length) {
                 let answer = [Answers[0]]
@@ -212,7 +216,18 @@ function autofill(Statements, submit) {
 
     if (submit) {
         setTimeout(() => {
-            document.querySelector('button[data-test="submit-button"]').click();
+            let submit_button = document.querySelector('button[data-test="submit-button"]')
+            if(submit_button){
+                submit_button.click();
+            }else{
+                submit_button = document.querySelector('button[data-testid="submit-button"]')
+                submit_button.click();
+
+                setTimeout(() => {
+                    let check_button = document.querySelector('button[data-testid="dialog-submit-button"]')
+                    check_button.click();
+                }, 100);
+            }
         }, 1000);
     }
 }
