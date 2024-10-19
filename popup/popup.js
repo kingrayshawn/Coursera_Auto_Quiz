@@ -170,7 +170,7 @@ function autofill(Statements, submit) {
     if (!QBlock.length) QBlock = document.querySelectorAll('div.css-dqaucz');
 
     QBlock = Array.from(QBlock).filter(function (element) {
-        return element.querySelector('div.css-4s48ix');
+        return element.querySelector('div.css-4s48ix');  // only keep the blocks with statement
     });
 
     for (let i = 0; i < QBlock.length; i++) {
@@ -184,7 +184,7 @@ function autofill(Statements, submit) {
 
             const radios = QBlock[i].querySelectorAll('input[type="radio"]');
             const checkboxes = QBlock[i].querySelectorAll('input[type="checkbox"]');
-            const fillinbox = QBlock[i].querySelector('input[type="text"], input[type="number"]');
+            const fillinboxes = QBlock[i].querySelectorAll('input[type="text"], input[type="number"]');
 
             if (radios.length) {
                 let answer = [Answers[0]]
@@ -201,12 +201,13 @@ function autofill(Statements, submit) {
                     if (answer.includes(optionStatement) && !checkbox.checked) checkbox.click()
                     if (!answer.includes(optionStatement) && checkbox.checked) checkbox.click()
                 });
-            } else if (fillinbox) {
+            } else if (fillinboxes.length) {
                 let answer = [Answers[0]]
-
-                fillinbox.value = answer;
-                fillinbox.dispatchEvent(new Event('input', { bubbles: true }));
-                fillinbox.dispatchEvent(new Event('change', { bubbles: true }));
+                for(let fillinbox of fillinboxes){
+                    fillinbox.value = answer;
+                    fillinbox.dispatchEvent(new Event('input', { bubbles: true }));
+                    fillinbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             }
         });
     }

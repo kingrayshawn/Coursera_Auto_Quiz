@@ -127,9 +127,12 @@ async function processing_questions() {
             }
         }
 
+        if(storageData) continue;
+
         if (useAIanswer && MultiChoice[i][0] != true) { // fill-in or singleChoice question
             console.log("Store Q" + (i + 1) + " by AI");
-            await askAI(Statements[i], Options[i], MultiChoice[i][0]);
+            let AI_Answer = await askAI(Statements[i], Options[i], MultiChoice[i][0]);
+            await setStorageData(Statements[i], AI_Answer);
         } else { // multiChoice
             console.log("Store Q" + (i + 1));
             await setStorageData(Statements[i], Options[i]);
@@ -160,7 +163,8 @@ async function processing_answers() {
                     new_answer = Options[i];
                     if (new_answer.length > 1 && useAIanswer) {
                         console.log("Q" + (i + 1) + " Update answer by AI");
-                        await askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                        let AI_Answer = askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                        await setStorageData(Statements[i], AI_Answer);
                     } else {
                         console.log("Q" + (i + 1) + " Update answer");
                         await setStorageData(Statements[i], new_answer);
@@ -199,7 +203,8 @@ async function processing_answers() {
 
                 } else if (useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
-                    await askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                    let AI_Answer = await askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                    await setStorageData(Statements[i], AI_Answer);
 
                 } else {
                     console.log("Q" + (i + 1) + " Update answer");
@@ -219,7 +224,8 @@ async function processing_answers() {
 
                 if (useAIanswer) {
                     console.log("Q" + (i + 1) + " Update answer by AI");
-                    await askAI(Statements[i], Options[i], MultiChoice[i][0]);
+                    let AI_Answer = await askAI(Statements[i], Options[i], MultiChoice[i][0]);
+                    await setStorageData(Statements[i], AI_Answer);
                 } else {
                     console.log("Q" + (i + 1) + " Update answer");
                     await setStorageData(Statements[i], "unknown");
@@ -272,11 +278,7 @@ async function askAI(statement, options, multichoice) {
 
     try {
         const data = await response.json();
-        // console.log(data)
         const AIrespone = data.candidates[0].content.parts[0].text.trim()
-
-        // console.log(message)
-        // console.log(AIrespone)
 
         let new_options = []
         if (multichoice == 'fill-in') {
@@ -298,13 +300,11 @@ async function askAI(statement, options, multichoice) {
                 new_options.unshift(AIanswer);
             }
         }
-        await setStorageData(statement, new_options);
+        return new_options;
     } catch (error) {
         console.error('Error:', error);
-
         if (multichoice == 'fill-in') options = ["unknown"]
-        await setStorageData(statement, options);
-
+        return options;
     }
 }
 

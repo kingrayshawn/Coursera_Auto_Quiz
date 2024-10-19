@@ -63,7 +63,7 @@ function GetMultiChoice(QBlock) {
     const radio = QBlock.querySelectorAll('input[type="radio"]');
 
     const fillinbox = QBlock.querySelector('input[type="text"], input[type="number"]');
-    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
+    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"], div.css-ou8fzx');
 
     if (checkboxes.length) multiChoice.push(true);
     else if (radio.length) multiChoice.push(false);
@@ -77,7 +77,7 @@ function GetOptions(QBlock, GetUserChoice) {
     const radios = QBlock.querySelectorAll('input[type="radio"]');
     const checkboxes = QBlock.querySelectorAll('input[type="checkbox"]');
     const fillinbox = QBlock.querySelector('input[type="text"], input[type="number"]');
-    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"]');
+    const answerfillinbox = QBlock.querySelector('div[data-testid="readOnlyText"], div.css-ou8fzx');
 
     if (checkboxes.length) {
         checkboxes.forEach(checkbox => {
