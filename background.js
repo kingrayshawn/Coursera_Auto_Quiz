@@ -317,7 +317,7 @@ async function queryDB(statement) {
             },
             body: JSON.stringify({
                 question: statement,
-                password: DB_PASSWORD,
+                password: DB_Password,
                 url: Url
             })
         });
@@ -349,7 +349,7 @@ async function insertDB(statement, answer) {
             body: JSON.stringify({
                 question: statement,
                 answer: JSON.stringify(answer),
-                password: DB_PASSWORD,
+                password: DB_Password,
                 url: Url
             })
         });
