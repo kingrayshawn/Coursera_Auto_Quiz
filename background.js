@@ -35,6 +35,10 @@ function setStorageData(key, data) {
     });
 }
 
+function deleteCurrent() {
+    chrome.storage.local.remove(Statements);
+}
+
 function sameArray(arr1, arr2) {
     if (!Array.isArray(arr1) || !Array.isArray(arr2)) return false;
     if (arr1.length !== arr2.length) return false;
@@ -168,7 +172,8 @@ async function processing_answers() {
                     new_answer = Options[i];
                     if (new_answer.length > 1 && useAIanswer) {
                         console.log("Q" + (i + 1) + " Update answer by AI");
-                        let AI_Answer = askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                        let AI_Answer = await askAI(Statements[i], new_answer, MultiChoice[i][0]);
+                        
                         await setStorageData(Statements[i], AI_Answer);
                     } else {
                         console.log("Q" + (i + 1) + " Update answer");
@@ -248,7 +253,7 @@ async function processing_answers() {
 
 
 
-async function askAI(statement, options, multichoice) {
+async function askAI(statement, options, multichoice, retry = 1) {
     let message = statement + "\n"
 
     if (typeof multichoice == 'boolean') {
@@ -272,7 +277,7 @@ async function askAI(statement, options, multichoice) {
             }
         ],
     };
-
+    
     const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -310,8 +315,14 @@ async function askAI(statement, options, multichoice) {
     } catch (error) {
         console.error('Error:', error);
 
-        if (multichoice == 'fill-in') options = ["unknown"]
-        return options;
+        if (retry >= 5) {
+            if (multichoice == 'fill-in') options = ["unknown"]
+            return options;
+        } else {
+            await delay(retry * 2000);
+            return await askAI(statement, options, multichoice, retry + 1);
+        }
+
     }
 }
 
