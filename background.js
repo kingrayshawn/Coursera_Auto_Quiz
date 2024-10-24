@@ -121,6 +121,7 @@ async function processing_data(statements, options, multiChoice, userChoice, fee
 
 async function processing_questions() {
     console.log("--------------------processing_questions--------------------");
+
     for (let i = 0; i < Statements.length; i++) {
         console.log("Load Q" + (i + 1));
 
@@ -132,10 +133,8 @@ async function processing_questions() {
             if (DBAnswer) {
                 console.log("Store Q" + (i + 1) + " by DB");
                 await setStorageData(Statements[i], DBAnswer);
-                continue;
             }
         }
-
         if (storageData) continue;
 
         if (useAIanswer && MultiChoice[i][0] != true) { // fill-in or singleChoice question
@@ -337,7 +336,8 @@ async function queryDB(statement) {
                 question: statement,
                 password: DB_Password,
                 url: Url
-            })
+            }),
+            signal: AbortSignal.timeout(3000)
         });
         const data = await response.json();
 
@@ -369,7 +369,8 @@ async function insertDB(statement, answer) {
                 answer: JSON.stringify(answer),
                 password: DB_Password,
                 url: Url
-            })
+            }),
+            signal: AbortSignal.timeout(3000)
         });
 
         const data = await response.json();
